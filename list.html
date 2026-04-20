@@ -69,6 +69,10 @@
                 <form id="list-form">
                     <input type="text" id="list-name" placeholder="list name" required>
                     <textarea id="list-description" placeholder="description (optional)"></textarea>
+                    <label style="color: var(--text); font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem; cursor: pointer;">
+                        <input type="checkbox" id="list-ordered" style="accent-color: var(--accent); width: auto; margin: 0;">
+                        Trail (ordered list — steps are numbered)
+                    </label>
                     <button type="submit">create list</button>
                 </form>
             </div>

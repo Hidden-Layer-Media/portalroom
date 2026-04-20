@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain - Portal Room</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <pre>
+ ____             _        _   ____
+|  _ \ ___  _ __ | |_ __ _| | |  _ \ ___   ___  _ __ ___
+| |_) / _ \| '_ \| __/ _` | | | |_) / _ \ / _ \| '_ ` _ \
+|  __/ (_) | | | | || (_| | | |  _ < (_) | (_) | | | | | |
+|_|   \___/|_| |_|\__\__,_|_| |_| \_\___/ \___/|_| |_| |_|
+        </pre>
+        <nav>
+            <a href="index.html">home</a>
+            <a href="dashboard.html">dashboard</a>
+            <a href="top-links.html">top links</a>
+            <a href="tags.html">tags</a>
+            <a href="login.html">login</a>
+        </nav>
+        <div class="ticker-container">
+            <div class="ticker-label">latest:</div>
+            <div class="ticker" id="ticker"></div>
+        </div>
+    </header>
+
+    <div class="layout-container">
+        <!-- Left Sidebar -->
+        <aside class="sidebar" id="left-sidebar">
+            <div class="widget">
+                <div class="widget-header">Site Stats</div>
+                <div class="widget-content" id="widget-stats"></div>
+            </div>
+
+            <div class="widget">
+                <div class="widget-header">Popular Tags</div>
+                <div class="widget-content">
+                    <div class="tag-widget" id="widget-tags"></div>
+                </div>
+            </div>
+
+            <div class="widget">
+                <div class="widget-header">Top Contributors</div>
+                <div class="widget-content" id="widget-users"></div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main>
+            <div class="section-bar">
+                <span class="eyebrow">Domain Archive</span>
+                <span class="hint" id="domain-title"></span>
+            </div>
+            <div class="panel-block">
+                <h2>Links from <span id="domain-title-h2" class="archive-link"></span></h2>
+                <p class="dungeon-subtitle">All archived links from this domain.</p>
+                <div id="domain-content"></div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="sidebar" id="right-sidebar">
+            <div class="widget">
+                <div class="widget-header">Recent Links</div>
+                <div class="widget-content" id="widget-recent"></div>
+            </div>
+
+            <div class="widget">
+                <div class="widget-header">Quick Links</div>
+                <div class="widget-content">
+                    <div class="widget-item"><a href="index.html">Home</a></div>
+                    <div class="widget-item"><a href="dashboard.html">Dashboard</a></div>
+                    <div class="widget-item"><a href="tags.html">Tags</a></div>
+                    <div class="widget-item"><a href="top-links.html">Top Links</a></div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        // sync domain-title-h2 from URL param
+        const _domain = new URLSearchParams(window.location.search).get('domain') || '';
+        document.getElementById('domain-title-h2').textContent = _domain;
+    </script>
+</body>
+</html>

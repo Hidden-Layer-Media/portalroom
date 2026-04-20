@@ -454,6 +454,14 @@ class PortalRoom {
                 tags.map(tag => tag.toLowerCase())
             ));
 
+            const annotation = this.sanitizeHTML(document.getElementById('link-annotation')?.value.trim() || '');
+            const refRaw = document.getElementById('link-references')?.value.trim() || '';
+            const normalizeUrl = u => { try { return new URL(u).href.replace(/\/$/, ''); } catch { return ''; } };
+            const refUrls = refRaw.split(',').map(u => normalizeUrl(u.trim())).filter(Boolean);
+            const references = allLinks
+                .filter(l => refUrls.includes(normalizeUrl(l.url)))
+                .map(l => l.id);
+
             const link = {
                 id: Date.now(),
                 url: this.sanitizeHTML(url),
@@ -467,7 +475,11 @@ class PortalRoom {
                 timestamp: new Date().toISOString(),
                 comments: [],
                 upvotes: 0,
-                downvotes: 0
+                downvotes: 0,
+                annotation: annotation,
+                references: references,
+                backlinkedBy: [],
+                dead: false
             };
 
             const users = JSON.parse(localStorage.getItem('users') || '{}');
@@ -475,6 +487,14 @@ class PortalRoom {
             localStorage.setItem('users', JSON.stringify(users));
 
             allLinks.push(link);
+            // Update backlinkedBy on referenced links in allLinks
+            references.forEach(refId => {
+                const refLink = allLinks.find(l => l.id === refId);
+                if (refLink) {
+                    if (!refLink.backlinkedBy) refLink.backlinkedBy = [];
+                    if (!refLink.backlinkedBy.includes(link.id)) refLink.backlinkedBy.push(link.id);
+                }
+            });
             localStorage.setItem('allLinks', JSON.stringify(allLinks));
 
             this.showNotification('Link submitted successfully!', 'success');
@@ -500,11 +520,14 @@ class PortalRoom {
                 return;
             }
 
+            const ordered = document.getElementById('list-ordered')?.checked || false;
+
             const list = {
                 id: Date.now(),
                 name: this.sanitizeHTML(name),
                 description: this.sanitizeHTML(description),
                 links: [],
+                ordered: ordered,
                 author: this.currentUser,
                 timestamp: new Date().toISOString()
             };
@@ -691,6 +714,14 @@ class PortalRoom {
                 }
 
                 allLinks.splice(linkIndex, 1);
+
+                // remove this link from backlinkedBy of referenced links
+                (link.references || []).forEach(refId => {
+                    const refLink = allLinks.find(l => l.id === refId);
+                    if (refLink && refLink.backlinkedBy) {
+                        refLink.backlinkedBy = refLink.backlinkedBy.filter(id => id !== linkId);
+                    }
+                });
                 localStorage.setItem('allLinks', JSON.stringify(allLinks));
 
                 const users = JSON.parse(localStorage.getItem('users') || '{}');
@@ -1104,6 +1135,9 @@ class PortalRoom {
             case 'tags.html':
                 this.renderTags();
                 break;
+            case 'domain.html':
+                this.renderDomainPage();
+                break;
         }
     }
 
@@ -1191,7 +1225,10 @@ class PortalRoom {
         const tagCloud = document.createElement('div');
         tagCloud.className = 'tag-cloud';
         tagCloud.innerHTML = sortedTags.map(([tag, count]) => `
-            <a href="dashboard.html?tag=${encodeURIComponent(tag)}" class="tag-link">${tag} (${count})</a>
+            <span class="tag-cloud-item">
+                <a href="dashboard.html?tag=${encodeURIComponent(tag)}" class="tag-link">${tag} (${count})</a>
+                <button class="tag-rss" onclick="app.generateTagRSS('${this.sanitizeHTML(tag)}')" title="Download RSS for #${this.sanitizeHTML(tag)}">rss</button>
+            </span>
         `).join('');
         container.appendChild(tagCloud);
     }
@@ -1313,7 +1350,7 @@ class PortalRoom {
                     <div class="value">${stat.value}</div>
                     <div class="label">${stat.label}</div>
                 </div>
-            `).join('');
+            `).join('') + `<div class="profile-metric"><button class="tag-rss" onclick="app.generateUserRSS('${this.sanitizeHTML(this.currentUser)}')">download rss</button></div>`;
         }
 
         if (userLinksList) {
@@ -1415,8 +1452,9 @@ class PortalRoom {
         const listDetails = document.getElementById('list-details');
         const listLinks = document.getElementById('list-links');
 
+        const trailBadge = foundList.ordered ? `<span class="badge-trail">[trail]</span>` : '';
         listDetails.innerHTML = `
-            <h2>${foundList.name}</h2>
+            <h2>${foundList.name} ${trailBadge}</h2>
             <p>${foundList.description}</p>
             <small>Created by ${listAuthor} | ${new Date(foundList.timestamp).toLocaleDateString()}</small>
         `;
@@ -1428,6 +1466,19 @@ class PortalRoom {
 
         if (links.length === 0) {
             listLinks.innerHTML = '<p class="empty-state">No links in this list yet</p>';
+        } else if (foundList.ordered) {
+            links.forEach((link, i) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'trail-step-wrapper';
+                const stepNum = document.createElement('span');
+                stepNum.className = 'trail-step-num';
+                stepNum.textContent = `${i + 1}.`;
+                const linkElement = this.createLinkElement(link);
+                linkElement.classList.add('trail-step');
+                wrapper.appendChild(stepNum);
+                wrapper.appendChild(linkElement);
+                listLinks.appendChild(wrapper);
+            });
         } else {
             links.forEach(link => {
                 const linkElement = this.createLinkElement(link);
@@ -1440,11 +1491,14 @@ class PortalRoom {
         const element = document.createElement('div');
         element.className = 'list-item';
 
-        const linksHTML = list.links.map(linkId => {
-            const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
-            const link = allLinks.find(l => l.id === linkId);
+        const allLinksData = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        const trailBadge = list.ordered ? `<span class="badge-trail">[trail]</span>` : '';
+
+        const linksHTML = list.links.map((linkId, i) => {
+            const link = allLinksData.find(l => l.id === linkId);
             return link ? `
-                <div class="list-link-item">
+                <div class="list-link-item${list.ordered ? ' trail-step' : ''}">
+                    ${list.ordered ? `<span class="trail-step-num">${i + 1}.</span>` : ''}
                     <a href="${link.url}" target="_blank" class="list-link">${link.title}</a>
                     <button class="btn-remove-link" onclick="app.removeLinkFromList(${linkId}, ${list.id})">×</button>
                 </div>
@@ -1453,7 +1507,7 @@ class PortalRoom {
 
         element.innerHTML = `
             <div class="list-header">
-                <h3><a href="view-list.html?id=${list.id}" style="color: var(--accent); text-decoration: none;">${list.name}</a></h3>
+                <h3><a href="view-list.html?id=${list.id}" style="color: var(--accent); text-decoration: none;">${list.name}</a> ${trailBadge}</h3>
                 <button class="btn-delete" onclick="app.deleteList(${list.id})">Delete List</button>
             </div>
             <p>${list.description}</p>
@@ -1469,60 +1523,88 @@ class PortalRoom {
         const element = document.createElement('div');
         element.className = 'link-item';
 
-        const isAuthor = this.currentUser === link.author;
-        const tags = Array.isArray(link.tags) ? link.tags : [];
-        const description = link.description || '';
-        const category = link.category || '';
-        const button = link.button || '';
-        
+        // live lookup so dead/backlinks/annotation always reflect latest state
+        const allLinksData = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        const liveLink = allLinksData.find(l => l.id === link.id) || link;
+
+        const isAuthor = this.currentUser === liveLink.author;
+        const tags = Array.isArray(liveLink.tags) ? liveLink.tags : [];
+        const description = liveLink.description || '';
+        const category = liveLink.category || '';
+        const button = liveLink.button || '';
+
         const actionButtons = isAuthor ? `
             <div class="link-actions">
-                <button class="btn-edit" onclick="app.editLink(${link.id})">Edit</button>
-                <button class="btn-delete" onclick="app.deleteLink(${link.id})">Delete</button>
+                <button class="btn-edit" onclick="app.editLink(${liveLink.id})">Edit</button>
+                <button class="btn-delete" onclick="app.deleteLink(${liveLink.id})">Delete</button>
             </div>
         ` : '';
 
-        const listSelector = this.currentUser ? this.createListSelector(link.id) : '';
-        const upvotes = link.upvotes || 0;
-        const downvotes = link.downvotes || 0;
-        
+        const listSelector = this.currentUser ? this.createListSelector(liveLink.id) : '';
+        const upvotes = liveLink.upvotes || 0;
+        const downvotes = liveLink.downvotes || 0;
+
         const categoryBadge = category ? `<span class="tag" style="background: var(--accent); color: var(--bg); font-weight: bold;">[${category}]</span>` : '';
         const buttonDisplay = button ? `<div style="margin: 0.5rem 0;"><img src="${button}" alt="site button" style="max-width: 88px; height: auto; border: 1px solid var(--edge); image-rendering: pixelated;" onerror="this.style.display='none'"></div>` : '';
 
+        const deadBadge = liveLink.dead ? `<span class="badge-dead">[dead]</span>` : '';
+        const flagBtn = this.currentUser ? `<button class="btn-flag-dead" onclick="app.flagDeadLink(${liveLink.id})">${liveLink.dead ? 'mark alive' : 'flag dead'}</button>` : '';
+
+        let domainStr = '';
+        try { domainStr = new URL(liveLink.url).hostname; } catch {}
+        const domainLink = domainStr ? `<a href="domain.html?domain=${encodeURIComponent(domainStr)}" class="domain-link">${domainStr}</a>` : '';
+
+        const annotationBlock = liveLink.annotation ? `<div class="annotation-block">${this.simpleMarkdown(this.sanitizeHTML(liveLink.annotation))}</div>` : '';
+
+        const backlinkedBy = liveLink.backlinkedBy || [];
+        let backlinksHTML = '';
+        if (backlinkedBy.length > 0) {
+            const backlinkItems = backlinkedBy.map(bId => {
+                const bl = allLinksData.find(l => l.id === bId);
+                return bl ? `<a href="${bl.url}" target="_blank" class="backlink-item">${this.sanitizeHTML(bl.title)}</a>` : '';
+            }).filter(Boolean).join('');
+            if (backlinkItems) {
+                backlinksHTML = `<div class="backlinks-section"><span class="backlinks-label">linked by:</span> ${backlinkItems}</div>`;
+            }
+        }
+
         element.innerHTML = `
             <div class="link-header">
-                <h3><a href="${link.url}" target="_blank">${link.title}</a></h3>
+                <h3><a href="${liveLink.url}" target="_blank">${liveLink.title}</a> ${deadBadge}</h3>
                 ${actionButtons}
             </div>
-            ${link.thumbnail ? `<img src="${link.thumbnail}" alt="Thumbnail" class="link-thumbnail" onerror="this.style.display='none'">` : ''}
+            ${liveLink.thumbnail ? `<img src="${liveLink.thumbnail}" alt="Thumbnail" class="link-thumbnail" onerror="this.style.display='none'">` : ''}
             ${buttonDisplay}
             <p>${this.simpleMarkdown(description)}</p>
-            <small>by ${this.sanitizeHTML(link.author)} | ${new Date(link.timestamp).toLocaleDateString()}</small>
+            ${annotationBlock}
+            <small>by ${this.sanitizeHTML(liveLink.author)} | ${domainLink} | ${new Date(liveLink.timestamp).toLocaleDateString()}</small>
             <div class="tags">${categoryBadge} ${tags.map(tag => `<span class="tag">${tag}</span>`).join(' ')}</div>
+            ${backlinksHTML}
             ${listSelector}
             <div class="voting">
-                <button onclick="app.voteLink(${link.id}, 'up')" class="vote-btn up">👍 ${upvotes}</button>
-                <button onclick="app.voteLink(${link.id}, 'down')" class="vote-btn down">👎 ${downvotes}</button>
-                ${this.currentUser ? `<button onclick="app.toggleFavorite(${link.id})" class="favorite-btn">${this.isFavorite(link.id) ? '⭐' : '☆'} Favorite</button>` : ''}
+                <button onclick="app.voteLink(${liveLink.id}, 'up')" class="vote-btn up">+ ${upvotes}</button>
+                <button onclick="app.voteLink(${liveLink.id}, 'down')" class="vote-btn down">- ${downvotes}</button>
+                ${this.currentUser ? `<button onclick="app.toggleFavorite(${liveLink.id})" class="favorite-btn">${this.isFavorite(liveLink.id) ? '★' : '☆'}</button>` : ''}
+                ${flagBtn}
             </div>
             <div class="comments">
-                <h4>Comments (${link.comments?.length || 0})</h4>
-                <div class="comments-list" id="comments-${link.id}"></div>
+                <h4>Comments (${liveLink.comments?.length || 0})</h4>
+                <div class="comments-list" id="comments-${liveLink.id}"></div>
                 ${this.currentUser ? `
-                    <form class="comment-form" data-link-id="${link.id}">
-                        <input type="text" placeholder="Add a comment..." required>
-                        <button type="submit">Comment</button>
+                    <form class="comment-form" data-link-id="${liveLink.id}">
+                        <input type="text" placeholder="add a comment..." required>
+                        <button type="submit">comment</button>
                     </form>
-                ` : '<p class="empty-state">Log in to comment</p>'}
+                ` : '<p class="empty-state">log in to comment</p>'}
             </div>
         `;
 
         const commentForm = element.querySelector('.comment-form');
         if (commentForm) {
-            commentForm.addEventListener('submit', (e) => this.handleCommentSubmit(e, link.id));
+            commentForm.addEventListener('submit', (e) => this.handleCommentSubmit(e, liveLink.id));
         }
 
-        this.renderComments(link.id, element);
+        this.renderComments(liveLink.id, element);
 
         return element;
     }
@@ -1680,19 +1762,35 @@ class PortalRoom {
 
     generateRSS() {
         const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
-        const rssItems = allLinks.map(link => `
+        this._downloadRSS(allLinks, 'portalroom-feed.xml', 'Portal Room Links', 'Latest links from Portal Room');
+    }
+
+    generateTagRSS(tag) {
+        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        const filtered = allLinks.filter(l => (l.tags || []).includes(tag));
+        this._downloadRSS(filtered, `portalroom-tag-${tag}.xml`, `Portal Room: #${tag}`, `Links tagged ${tag} from Portal Room`);
+    }
+
+    generateUserRSS(username) {
+        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        const filtered = allLinks.filter(l => l.author === username);
+        this._downloadRSS(filtered, `portalroom-user-${username}.xml`, `Portal Room: ${username}`, `Links by ${username} on Portal Room`);
+    }
+
+    _downloadRSS(links, filename, title, description) {
+        const rssItems = links.map(link => `
 <item>
 <title><![CDATA[${link.title}]]></title>
 <link>${link.url}</link>
-<description><![CDATA[${link.description}]]></description>
+<description><![CDATA[${link.description || ''}]]></description>
 <pubDate>${new Date(link.timestamp).toUTCString()}</pubDate>
 </item>`).join('');
 
         const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
 <channel>
-<title>Portal Room Links</title>
-<description>Latest links from Portal Room</description>
+<title>${title}</title>
+<description>${description}</description>
 <link>${window.location.origin}</link>
 ${rssItems}
 </channel>
@@ -1702,7 +1800,7 @@ ${rssItems}
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'portalroom-feed.xml';
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
         this.showNotification('RSS feed downloaded!', 'success');
@@ -2054,6 +2152,55 @@ ${rssItems}
         const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
         log.innerHTML = `[SYSTEM] Portal loaded at ${new Date().toLocaleString()}<br>[SYSTEM] User: ${this.currentUser || 'guest'}<br>[SYSTEM] Links loaded: ${allLinks.length}<br>`;
         document.body.appendChild(log);
+    }
+
+    flagDeadLink(linkId) {
+        try {
+            const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+            const link = allLinks.find(l => l.id === linkId);
+            if (!link) return;
+            link.dead = !link.dead;
+            localStorage.setItem('allLinks', JSON.stringify(allLinks));
+            this.showNotification(link.dead ? 'Link flagged as dead' : 'Link marked as alive', link.dead ? 'warning' : 'success');
+            this.renderPage();
+        } catch {
+            this.showNotification('Failed to flag link', 'error');
+        }
+    }
+
+    renderDomainPage() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const domain = urlParams.get('domain');
+        const container = document.getElementById('domain-content');
+        if (!container) return;
+
+        if (!domain) {
+            container.innerHTML = '<p class="empty-state">No domain specified.</p>';
+            return;
+        }
+
+        const domainTitle = document.getElementById('domain-title');
+        if (domainTitle) domainTitle.textContent = domain;
+
+        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        const domainLinks = allLinks.filter(l => {
+            try { return new URL(l.url).hostname === domain; } catch { return false; }
+        });
+
+        container.innerHTML = '';
+
+        if (domainLinks.length === 0) {
+            container.innerHTML = '<p class="empty-state">No links from this domain yet.</p>';
+            return;
+        }
+
+        const rssBtn = document.createElement('button');
+        rssBtn.className = 'tag-rss';
+        rssBtn.textContent = 'download rss';
+        rssBtn.onclick = () => this._downloadRSS(domainLinks, `portalroom-domain-${domain}.xml`, `Portal Room: ${domain}`, `Links from ${domain} on Portal Room`);
+        container.appendChild(rssBtn);
+
+        domainLinks.forEach(link => container.appendChild(this.createLinkElement(link)));
     }
 }
 

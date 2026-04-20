@@ -1269,3 +1269,159 @@ a:focus {
     overflow-y: auto;
     z-index: 90;
 }
+
+/* =========================================
+   DEAD LINK BADGE
+   ========================================= */
+.badge-dead {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    background: var(--bg);
+    color: var(--error);
+    border: 1px solid var(--error);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+    margin-left: 0.4rem;
+}
+
+.btn-flag-dead {
+    padding: 0.25rem 0.6rem;
+    border: 1px solid #4a0010;
+    background: var(--bg-2);
+    color: var(--error);
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: 'MS Gothic', 'MS PGothic', monospace;
+    transition: background 0.1s;
+}
+
+.btn-flag-dead:hover { background: #1a0008; }
+
+/* =========================================
+   ANNOTATION
+   ========================================= */
+.annotation-block {
+    background: var(--bg-2);
+    border-left: 2px solid var(--info);
+    padding: 0.45rem 0.7rem;
+    margin: 0.4rem 0;
+    color: var(--bright);
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+/* =========================================
+   BACKLINKS
+   ========================================= */
+.backlinks-section {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 0.4rem 0;
+    font-size: 0.75rem;
+}
+
+.backlinks-label {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.backlink-item {
+    color: var(--link);
+    background: var(--bg);
+    border: 1px solid var(--border-2);
+    padding: 0.1rem 0.45rem;
+    font-size: 0.72rem;
+    transition: background 0.1s;
+}
+
+.backlink-item:hover {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+}
+
+/* =========================================
+   DOMAIN LINK
+   ========================================= */
+.domain-link {
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-decoration: none;
+    border-bottom: 1px dashed var(--border-2);
+    transition: color 0.1s;
+}
+
+.domain-link:hover { color: var(--link); border-bottom-color: var(--link); }
+
+.archive-link {
+    color: var(--link);
+    font-weight: bold;
+}
+
+/* =========================================
+   TRAIL (ORDERED LIST)
+   ========================================= */
+.badge-trail {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    background: var(--bg);
+    color: var(--info);
+    border: 1px solid var(--info);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+    margin-left: 0.4rem;
+}
+
+.trail-step-wrapper {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+
+.trail-step-num {
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    min-width: 1.8rem;
+    padding-top: 0.9rem;
+}
+
+.trail-step.list-link-item {
+    border-left: 2px solid var(--info);
+}
+
+/* =========================================
+   TAG RSS / CLOUD ITEM
+   ========================================= */
+.tag-cloud-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.tag-rss {
+    padding: 0.1rem 0.4rem;
+    border: 1px solid var(--border-2);
+    background: var(--bg);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.68rem;
+    font-family: 'MS Gothic', 'MS PGothic', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    transition: background 0.1s, color 0.1s;
+}
+
+.tag-rss:hover {
+    background: var(--bg-2);
+    color: var(--text);
+    border-color: var(--text);
+}
