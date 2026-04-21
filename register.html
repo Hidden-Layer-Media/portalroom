@@ -58,6 +58,7 @@
                 <h2>New User Registration</h2>
                 <p class="dungeon-subtitle">Create an account to submit and manage links in the archive.</p>
                 <form id="register-form">
+                    <input type="email" id="reg-email" placeholder="email address" required>
                     <input type="text" id="reg-username" placeholder="username (min 3 chars)" required minlength="3">
                     <input type="password" id="reg-password" placeholder="password (min 6 chars)" required minlength="6">
                     <input type="password" id="reg-confirm-password" placeholder="confirm password" required minlength="6">
@@ -91,6 +92,9 @@
         </aside>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

@@ -1,7 +1,23 @@
 // Portal Room - MVP Application
+const firebaseConfig = {
+  apiKey: "AIzaSyCWDAuYH8QW4clpwBIeluj6LWWlgbrcyTg",
+  authDomain: "portalroom.firebaseapp.com",
+  projectId: "portalroom",
+  storageBucket: "portalroom.firebasestorage.app",
+  messagingSenderId: "462847537064",
+  appId: "1:462847537064:web:555ebd44f68b297a27379d",
+  measurementId: "G-78QKYNG3KZ"
+};
+
+// Initialize Firebase
+const app = (typeof firebase !== 'undefined') ? firebase.initializeApp(firebaseConfig) : null;
+const auth = app ? firebase.auth() : null;
+const db = app ? firebase.firestore() : null;
+
 class PortalRoom {
     constructor() {
         this.currentUser = null;
+        this.session = null;
         this.filters = {
             search: '',
             tag: 'all',
@@ -12,8 +28,8 @@ class PortalRoom {
         this.init();
     }
 
-    init() {
-        this.loadCurrentUser();
+    async init() {
+        await this.loadSession();
         this.redirectAuthenticatedFromAuthPages();
         this.checkAuth();
         this.setupEventListeners();
@@ -25,6 +41,57 @@ class PortalRoom {
         this.addStatusLog();
         this.populateWidgets();
         this.startTicker();
+    }
+
+    async loadSession() {
+        if (!auth) {
+            this.loadCurrentUser();
+            return;
+        }
+
+        return new Promise((resolve) => {
+            auth.onAuthStateChanged((user) => {
+                this.session = user;
+                this.currentUser = user?.email || null;
+                this.renderPage();
+                resolve(user);
+            });
+        });
+    }
+
+    setupRealtimeListeners() {
+        if (!db) return;
+
+        db.collection('posts').onSnapshot(() => {
+            this.renderPage();
+        });
+    }
+
+    async getLinks() {
+        if (db) {
+            try {
+                const snapshot = await db.collection('posts').orderBy('created_at', 'desc').get();
+                const links = [];
+                for (const doc of snapshot.docs) {
+                    const data = doc.data();
+                    // Fetch comments for each post
+                    const commentsSnapshot = await db.collection('posts').doc(doc.id).collection('comments').orderBy('created_at', 'asc').get();
+                    const comments = commentsSnapshot.docs.map(c => ({ id: c.id, ...c.data() }));
+                    
+                    links.push({
+                        id: doc.id,
+                        ...data,
+                        timestamp: data.created_at ? (data.created_at.toDate ? data.created_at.toDate().toISOString() : data.created_at) : new Date().toISOString(),
+                        comments: comments
+                    });
+                }
+                return links;
+            } catch (error) {
+                console.error('Error fetching links from Firebase:', error);
+                return JSON.parse(localStorage.getItem('allLinks') || '[]');
+            }
+        }
+        return JSON.parse(localStorage.getItem('allLinks') || '[]');
     }
 
     // Setup page
@@ -260,15 +327,29 @@ class PortalRoom {
     async handleLogin(e) {
         e.preventDefault();
         try {
-            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email')?.value.trim() || document.getElementById('username')?.value.trim();
             const password = document.getElementById('password').value;
 
-            if (!username || !password) {
-                this.showNotification('Please enter both username and password', 'error');
+            if (!email || !password) {
+                this.showNotification('Please enter both email and password', 'error');
                 return;
             }
 
-            // Check rate limiting
+            if (auth) {
+                this.showNotification('Authenticating...', 'info');
+                try {
+                    await auth.signInWithEmailAndPassword(email, password);
+                    this.showNotification('Login successful!', 'success');
+                    setTimeout(() => window.location.href = 'dashboard.html', 500);
+                    return;
+                } catch (error) {
+                    this.showNotification(error.message, 'error');
+                    return;
+                }
+            }
+
+            // Fallback for local dev without Firebase
+            const username = email;
             const failedAttempts = JSON.parse(localStorage.getItem('failedAttempts') || '{}');
             const userAttempts = failedAttempts[username] || { count: 0, lockUntil: 0 };
             const now = Date.now();
@@ -288,10 +369,8 @@ class PortalRoom {
 
             let isValid = false;
             if (typeof user.password === 'string') {
-                // Old hash, migrate
                 const oldHashed = this.hashPasswordOld(password);
                 if (user.password === oldHashed) {
-                    // Migrate to new hash
                     const salt = crypto.getRandomValues(new Uint8Array(16));
                     const newHashed = await this.hashPassword(password, salt);
                     user.password = newHashed;
@@ -300,7 +379,6 @@ class PortalRoom {
                     isValid = true;
                 }
             } else {
-                // New hash
                 const hashedPassword = await this.hashPassword(password, new Uint8Array(user.salt));
                 if (user.password === hashedPassword) {
                     isValid = true;
@@ -308,18 +386,18 @@ class PortalRoom {
             }
 
             if (isValid) {
-                // Reset failed attempts on success
                 delete failedAttempts[username];
                 localStorage.setItem('failedAttempts', JSON.stringify(failedAttempts));
                 this.currentUser = username;
                 localStorage.setItem('currentUser', username);
-                this.showNotification('Login successful!', 'success');
+                this.showNotification('Login successful (local mode)!', 'success');
                 setTimeout(() => window.location.href = 'dashboard.html', 500);
             } else {
                 this.incrementFailedAttempts(username, failedAttempts);
                 this.showNotification('Invalid credentials', 'error');
             }
         } catch (error) {
+            console.error('Login error:', error);
             this.showNotification('Login failed. Please try again.', 'error');
         }
     }
@@ -348,12 +426,13 @@ class PortalRoom {
     async handleRegister(e) {
         e.preventDefault();
         try {
+            const email = document.getElementById('reg-email')?.value.trim();
             const username = document.getElementById('reg-username').value.trim();
             const password = document.getElementById('reg-password').value;
             const confirmPassword = document.getElementById('reg-confirm-password')?.value;
 
             // Validation
-            if (!username || !password) {
+            if ((supabaseClient && !email) || !username || !password) {
                 this.showNotification('Please fill in all fields', 'error');
                 return;
             }
@@ -373,6 +452,28 @@ class PortalRoom {
                 return;
             }
 
+            if (auth && email) {
+                this.showNotification('Creating account...', 'info');
+                try {
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    const user = userCredential.user;
+                    
+                    if (db) {
+                        await db.collection('profiles').doc(user.uid).set({
+                            username: username,
+                            joined_at: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+
+                    this.showNotification('Registration successful!', 'success');
+                    setTimeout(() => window.location.href = 'dashboard.html', 500);
+                } catch (error) {
+                    this.showNotification(error.message, 'error');
+                }
+                return;
+            }
+
+            // Fallback
             const users = JSON.parse(localStorage.getItem('users') || '{}');
             if (users[username]) {
                 this.showNotification('Username already exists', 'error');
@@ -395,14 +496,15 @@ class PortalRoom {
 
             this.currentUser = username;
             localStorage.setItem('currentUser', username);
-            this.showNotification('Registration successful!', 'success');
+            this.showNotification('Registration successful (local mode)!', 'success');
             setTimeout(() => window.location.href = 'dashboard.html', 500);
         } catch (error) {
+            console.error('Registration error:', error);
             this.showNotification('Registration failed. Please try again.', 'error');
         }
     }
 
-    handleLinkSubmit(e) {
+    async handleLinkSubmit(e) {
         e.preventDefault();
         if (!this.currentUser) {
             this.showNotification('Please log in first', 'error');
@@ -420,7 +522,6 @@ class PortalRoom {
                 .map(tag => tag.trim())
                 .filter(tag => tag);
             
-            // Get thumbnail from preview or empty string
             const thumbnailImg = document.getElementById('thumbnail-img');
             const thumbnail = thumbnailImg && thumbnailImg.src && thumbnailImg.src.startsWith('http') ? thumbnailImg.src : '';
 
@@ -444,17 +545,48 @@ class PortalRoom {
                 return;
             }
 
+            const normalizedTags = Array.from(new Set(
+                tags.map(tag => tag.toLowerCase())
+            ));
+
+            const annotation = this.sanitizeHTML(document.getElementById('link-annotation')?.value.trim() || '');
+            
+            if (db && this.session) {
+                this.showNotification('Submitting...', 'info');
+                try {
+                    await db.collection('posts').add({
+                        url: this.sanitizeHTML(url),
+                        title: this.sanitizeHTML(title),
+                        description: this.sanitizeHTML(description),
+                        category: this.sanitizeHTML(category),
+                        tags: normalizedTags.map(tag => this.sanitizeHTML(tag)).slice(0, 8),
+                        thumbnail: thumbnail,
+                        button: button ? this.sanitizeHTML(button) : '',
+                        user_id: this.session.uid,
+                        author: this.currentUser,
+                        annotation: annotation,
+                        upvotes: 0,
+                        downvotes: 0,
+                        dead: false,
+                        created_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    this.showNotification('Link submitted successfully!', 'success');
+                    setTimeout(() => window.location.href = 'dashboard.html', 500);
+                    return;
+                } catch (error) {
+                    this.showNotification(error.message, 'error');
+                    return;
+                }
+            }
+
+            // Fallback
             const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
             if (allLinks.some(link => link.url === url)) {
                 this.showNotification('This URL has already been submitted', 'error');
                 return;
             }
 
-            const normalizedTags = Array.from(new Set(
-                tags.map(tag => tag.toLowerCase())
-            ));
-
-            const annotation = this.sanitizeHTML(document.getElementById('link-annotation')?.value.trim() || '');
             const refRaw = document.getElementById('link-references')?.value.trim() || '';
             const normalizeUrl = u => { try { return new URL(u).href.replace(/\/$/, ''); } catch { return ''; } };
             const refUrls = refRaw.split(',').map(u => normalizeUrl(u.trim())).filter(Boolean);
@@ -487,7 +619,6 @@ class PortalRoom {
             localStorage.setItem('users', JSON.stringify(users));
 
             allLinks.push(link);
-            // Update backlinkedBy on referenced links in allLinks
             references.forEach(refId => {
                 const refLink = allLinks.find(l => l.id === refId);
                 if (refLink) {
@@ -497,9 +628,10 @@ class PortalRoom {
             });
             localStorage.setItem('allLinks', JSON.stringify(allLinks));
 
-            this.showNotification('Link submitted successfully!', 'success');
+            this.showNotification('Link submitted successfully (local)!', 'success');
             setTimeout(() => window.location.href = 'dashboard.html', 500);
         } catch (error) {
+            console.error('Submission error:', error);
             this.showNotification('Failed to submit link. Please try again.', 'error');
         }
     }
@@ -543,9 +675,20 @@ class PortalRoom {
         }
     }
 
-    handleLogout(e) {
+    async handleLogout(e) {
         e.preventDefault();
+        
+        if (auth) {
+            try {
+                await auth.signOut();
+            } catch (error) {
+                this.showNotification(error.message, 'error');
+                return;
+            }
+        }
+
         this.currentUser = null;
+        this.session = null;
         localStorage.removeItem('currentUser');
         this.showNotification('Logged out successfully', 'success');
         setTimeout(() => window.location.href = 'index.html', 500);
@@ -571,21 +714,21 @@ class PortalRoom {
         this.applyFilters();
     }
 
-    applyFilters() {
-        this.filterLinks({
+    async applyFilters() {
+        await this.filterLinks({
             search: this.filters.search,
             tag: this.filters.tag
         });
     }
 
-    filterLinks(options = {}) {
+    async filterLinks(options = {}) {
         const container = document.getElementById('links-list');
         if (!container) return;
 
         const searchTerm = (options.search ?? this.filters.search ?? '').toLowerCase();
         const tagFilter = options.tag ?? this.filters.tag ?? 'all';
         const sortBy = options.sort ?? this.filters.sort ?? 'newest';
-        let allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        let allLinks = await this.getLinks();
 
         if (searchTerm) {
             allLinks = allLinks.filter(link =>
@@ -648,11 +791,11 @@ class PortalRoom {
         }
     }
 
-    populateTagFilter() {
+    async populateTagFilter() {
         const tagFilter = document.getElementById('tag-filter');
         if (!tagFilter) return;
 
-        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        const allLinks = await this.getLinks();
         const uniqueTags = Array.from(new Set(
             allLinks.flatMap(link => link.tags || [])
         )).filter(Boolean).sort((a, b) => a.localeCompare(b));
@@ -698,10 +841,22 @@ class PortalRoom {
         `).join('');
     }
 
-    deleteLink(linkId) {
+    async deleteLink(linkId) {
         if (!confirm('Are you sure you want to delete this link?')) return;
 
         try {
+            if (db && this.session) {
+                const postRef = db.collection('posts').doc(linkId);
+                const doc = await postRef.get();
+                if (doc.exists && doc.data().user_id === this.session.uid) {
+                    await postRef.delete();
+                    this.showNotification('Link deleted successfully', 'success');
+                } else {
+                    this.showNotification('You can only delete your own links', 'error');
+                }
+                return;
+            }
+
             const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
             const linkIndex = allLinks.findIndex(l => l.id === linkId);
 
@@ -714,14 +869,6 @@ class PortalRoom {
                 }
 
                 allLinks.splice(linkIndex, 1);
-
-                // remove this link from backlinkedBy of referenced links
-                (link.references || []).forEach(refId => {
-                    const refLink = allLinks.find(l => l.id === refId);
-                    if (refLink && refLink.backlinkedBy) {
-                        refLink.backlinkedBy = refLink.backlinkedBy.filter(id => id !== linkId);
-                    }
-                });
                 localStorage.setItem('allLinks', JSON.stringify(allLinks));
 
                 const users = JSON.parse(localStorage.getItem('users') || '{}');
@@ -730,19 +877,26 @@ class PortalRoom {
                     localStorage.setItem('users', JSON.stringify(users));
                 }
 
-                this.showNotification('Link deleted successfully', 'success');
+                this.showNotification('Link deleted successfully (local)', 'success');
                 this.renderPage();
             }
         } catch (error) {
+            console.error('Delete error:', error);
             this.showNotification('Failed to delete link', 'error');
         }
     }
 
-    editLink(linkId) {
-        const link = this.getLinkById(linkId);
+    async editLink(linkId) {
+        const links = await this.getLinks();
+        const link = links.find(l => l.id === linkId);
         if (!link) return;
 
-        if (link.author !== this.currentUser) {
+        if (db) {
+            if (link.user_id !== this.session?.uid) {
+                this.showNotification('You can only edit your own links', 'error');
+                return;
+            }
+        } else if (link.author !== this.currentUser) {
             this.showNotification('You can only edit your own links', 'error');
             return;
         }
@@ -754,8 +908,17 @@ class PortalRoom {
         if (newDescription === null) return;
 
         try {
-            link.title = this.sanitizeHTML(newTitle.trim());
-            link.description = this.sanitizeHTML(newDescription.trim());
+            const title = this.sanitizeHTML(newTitle.trim());
+            const description = this.sanitizeHTML(newDescription.trim());
+
+            if (db) {
+                await db.collection('posts').doc(linkId).update({ title, description });
+                this.showNotification('Link updated successfully', 'success');
+                return;
+            }
+
+            link.title = title;
+            link.description = description;
 
             const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
             const linkIndex = allLinks.findIndex(l => l.id === linkId);
@@ -771,9 +934,10 @@ class PortalRoom {
                 localStorage.setItem('users', JSON.stringify(users));
             }
 
-            this.showNotification('Link updated successfully', 'success');
+            this.showNotification('Link updated successfully (local)', 'success');
             this.renderPage();
         } catch (error) {
+            console.error('Update error:', error);
             this.showNotification('Failed to update link', 'error');
         }
     }
@@ -860,13 +1024,38 @@ class PortalRoom {
         }
     }
 
-    voteLink(linkId, type) {
-        if (!this.currentUser) {
+    async voteLink(linkId, type) {
+        if (!this.currentUser || !this.session) {
             this.showNotification('Please log in to vote', 'error');
             return;
         }
 
         try {
+            if (db) {
+                const voteRef = db.collection('posts').doc(linkId).collection('votes').doc(this.session.uid);
+                const doc = await voteRef.get();
+                
+                if (doc.exists && doc.data().vote_type === type) {
+                    await voteRef.delete();
+                    this.showNotification('Vote removed', 'info');
+                } else {
+                    await voteRef.set({ vote_type: type });
+                    this.showNotification(`Vote ${type}voted!`, 'success');
+                }
+
+                // Recalculate upvotes/downvotes
+                const votesSnapshot = await db.collection('posts').doc(linkId).collection('votes').get();
+                let upvotes = 0;
+                let downvotes = 0;
+                votesSnapshot.forEach(v => {
+                    if (v.data().vote_type === 'up') upvotes++;
+                    else downvotes++;
+                });
+
+                await db.collection('posts').doc(linkId).update({ upvotes, downvotes });
+                return;
+            }
+
             const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
             const link = allLinks.find(l => l.id === linkId);
 
@@ -879,7 +1068,6 @@ class PortalRoom {
             const previousVote = link.votes[this.currentUser];
 
             if (previousVote === type) {
-                // Remove vote
                 delete link.votes[this.currentUser];
                 link[type + 'votes']--;
             } else {
@@ -894,6 +1082,7 @@ class PortalRoom {
             this.showNotification(`Vote ${type}voted!`, 'success');
             this.renderPage();
         } catch (error) {
+            console.error('Vote error:', error);
             this.showNotification('Failed to vote', 'error');
         }
     }
@@ -1112,41 +1301,41 @@ class PortalRoom {
             });
     }
 
-    renderPage() {
+    async renderPage() {
         const path = window.location.pathname.split('/').pop();
 
         switch(path) {
             case 'index.html':
             case '':
-                this.renderHome();
+                await this.renderHome();
                 break;
             case 'dashboard.html':
-                this.renderDashboard();
+                await this.renderDashboard();
                 break;
             case 'profile.html':
-                this.renderProfile();
+                await this.renderProfile();
                 break;
             case 'view-list.html':
-                this.renderViewList();
+                await this.renderViewList();
                 break;
             case 'top-links.html':
-                this.renderTopLinks();
+                await this.renderTopLinks();
                 break;
             case 'tags.html':
-                this.renderTags();
+                await this.renderTags();
                 break;
             case 'domain.html':
-                this.renderDomainPage();
+                await this.renderDomainPage();
                 break;
         }
     }
 
-    renderHome() {
+    async renderHome() {
         const container = document.getElementById('links-list');
         if (!container) return;
 
-        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
-        const recentLinks = allLinks.slice(-50).reverse();
+        const allLinks = await this.getLinks();
+        const recentLinks = allLinks.slice(0, 50);
 
         container.innerHTML = '';
 
@@ -1171,11 +1360,11 @@ class PortalRoom {
         });
     }
 
-    renderTopLinks() {
+    async renderTopLinks() {
         const container = document.getElementById('links-list');
         if (!container) return;
 
-        let allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        let allLinks = await this.getLinks();
         allLinks = allLinks.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
         const topLinks = allLinks.slice(0, 50);
 
@@ -1233,12 +1422,12 @@ class PortalRoom {
         container.appendChild(tagCloud);
     }
 
-    renderDashboard() {
+    async renderDashboard() {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('tag')) {
             this.filters.tag = urlParams.get('tag');
         }
-        this.populateTagFilter();
+        await this.populateTagFilter();
         // Add feed filter if logged in
         if (this.currentUser) {
             const searchFilter = document.querySelector('.search-filter');
@@ -1253,10 +1442,10 @@ class PortalRoom {
                 }
             }
         }
-        this.applyFilters();
+        await this.applyFilters();
     }
 
-    renderProfile() {
+    async renderProfile() {
         const usernameElement = document.getElementById('profile-username');
         const userLinksList = document.getElementById('user-links-list');
         const listsContainer = document.getElementById('lists-container');
@@ -1267,9 +1456,27 @@ class PortalRoom {
         const bioTextarea = document.getElementById('profile-bio');
         const memberSince = document.getElementById('member-since');
 
-        const users = JSON.parse(localStorage.getItem('users') || '{}');
-        const userData = users[this.currentUser] || { links: [], lists: [], bio: '', customCSS: '', bgImage: '', bgStyle: 'tiled' };
-        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        let userData = { links: [], lists: [], bio: '', customCSS: '', bgImage: '', bgStyle: 'tiled', joinedAt: null };
+        let allLinks = await this.getLinks();
+
+        if (db && this.session) {
+            const doc = await db.collection('profiles').doc(this.session.uid).get();
+            if (doc.exists) {
+                const profile = doc.data();
+                userData = {
+                    ...userData,
+                    bio: profile.bio || '',
+                    customCSS: profile.custom_css || '',
+                    bgImage: profile.bg_image || '',
+                    bgStyle: profile.bg_style || 'tiled',
+                    joinedAt: profile.joined_at ? (profile.joined_at.toDate ? profile.joined_at.toDate().toISOString() : profile.joined_at) : null
+                };
+            }
+            userData.links = allLinks.filter(l => l.user_id === this.session.uid);
+        } else {
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            userData = users[this.currentUser] || userData;
+        }
 
         if (usernameElement) {
             usernameElement.textContent = `${this.currentUser}`;
@@ -1656,9 +1863,9 @@ class PortalRoom {
         }
     }
 
-    handleCommentSubmit(e, linkId) {
+    async handleCommentSubmit(e, linkId) {
         e.preventDefault();
-        if (!this.currentUser) {
+        if (!this.currentUser || !this.session) {
             this.showNotification('Please log in to comment', 'error');
             return;
         }
@@ -1669,6 +1876,20 @@ class PortalRoom {
         if (!commentText) return;
 
         try {
+            if (db) {
+                await db.collection('posts').doc(linkId).collection('comments').add({
+                    user_id: this.session.uid,
+                    author: this.currentUser,
+                    text: this.sanitizeHTML(commentText),
+                    created_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                form.reset();
+                this.showNotification('Comment added!', 'success');
+                return;
+            }
+            
+            // Fallback
             const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
             const link = allLinks.find(l => l.id === linkId);
 
@@ -1682,10 +1903,11 @@ class PortalRoom {
 
                 localStorage.setItem('allLinks', JSON.stringify(allLinks));
                 form.reset();
-                this.showNotification('Comment added!', 'success');
+                this.showNotification('Comment added (local)!', 'success');
                 this.renderPage();
             }
         } catch (error) {
+            console.error('Comment error:', error);
             this.showNotification('Failed to add comment', 'error');
         }
     }
@@ -1807,23 +2029,30 @@ ${rssItems}
     }
 
     // Populate sidebar widgets
-    populateWidgets() {
-        this.populateStatsWidget();
-        this.populateTagsWidget();
-        this.populateUsersWidget();
-        this.populateRecentWidget();
-        this.populateTopWidget();
-        this.populateUserLinksWidget();
+    async populateWidgets() {
+        await this.populateStatsWidget();
+        await this.populateTagsWidget();
+        await this.populateUsersWidget();
+        await this.populateRecentWidget();
+        await this.populateTopWidget();
+        await this.populateUserLinksWidget();
     }
 
-    populateStatsWidget() {
+    async populateStatsWidget() {
         const container = document.getElementById('widget-stats');
         if (!container) return;
 
-        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
-        const users = JSON.parse(localStorage.getItem('users') || '{}');
+        const allLinks = await this.getLinks();
+        let totalUsers = 0;
+        if (db) {
+            const snapshot = await db.collection('profiles').get();
+            totalUsers = snapshot.size;
+        } else {
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            totalUsers = Object.keys(users).length;
+        }
+        
         const totalLinks = allLinks.length;
-        const totalUsers = Object.keys(users).length;
         const totalComments = allLinks.reduce((sum, link) => sum + (link.comments?.length || 0), 0);
 
         container.innerHTML = `
@@ -1842,11 +2071,11 @@ ${rssItems}
         `;
     }
 
-    populateTagsWidget() {
+    async populateTagsWidget() {
         const container = document.getElementById('widget-tags');
         if (!container) return;
 
-        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        const allLinks = await this.getLinks();
         const tagCounts = {};
         allLinks.forEach(link => {
             (link.tags || []).forEach(tag => {
@@ -1868,11 +2097,11 @@ ${rssItems}
         `).join('');
     }
 
-    populateUsersWidget() {
+    async populateUsersWidget() {
         const container = document.getElementById('widget-users');
         if (!container) return;
 
-        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        const allLinks = await this.getLinks();
         const userCounts = {};
         allLinks.forEach(link => {
             userCounts[link.author] = (userCounts[link.author] || 0) + 1;
@@ -1895,12 +2124,12 @@ ${rssItems}
         `).join('');
     }
 
-    populateRecentWidget() {
+    async populateRecentWidget() {
         const container = document.getElementById('widget-recent');
         if (!container) return;
 
-        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
-        const recentLinks = allLinks.slice(-5).reverse();
+        const allLinks = await this.getLinks();
+        const recentLinks = allLinks.slice(0, 5);
 
         if (recentLinks.length === 0) {
             container.innerHTML = '<p style="color: var(--muted); font-size: 0.85rem;">No links yet</p>';
@@ -1914,11 +2143,11 @@ ${rssItems}
         `).join('');
     }
 
-    populateTopWidget() {
+    async populateTopWidget() {
         const container = document.getElementById('widget-top');
         if (!container) return;
 
-        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
+        const allLinks = await this.getLinks();
         const topLinks = allLinks
             .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0))
             .slice(0, 5);
@@ -1936,13 +2165,13 @@ ${rssItems}
         `).join('');
     }
 
-    populateUserLinksWidget() {
+    async populateUserLinksWidget() {
         const container = document.getElementById('widget-user-links');
         if (!container || !this.currentUser) return;
 
-        const users = JSON.parse(localStorage.getItem('users') || '{}');
-        const userLinks = users[this.currentUser]?.links || [];
-        const recentLinks = userLinks.slice(-5).reverse();
+        const allLinks = await this.getLinks();
+        const userLinks = allLinks.filter(l => l.author === this.currentUser);
+        const recentLinks = userLinks.slice(0, 5);
 
         if (recentLinks.length === 0) {
             container.innerHTML = '<p style="color: var(--muted); font-size: 0.85rem;">No links submitted yet</p>';
@@ -1956,20 +2185,18 @@ ${rssItems}
         `).join('');
     }
 
-    // Start ticker animation
-    startTicker() {
+    async startTicker() {
         const ticker = document.getElementById('ticker');
         if (!ticker) return;
 
-        const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
-        const recentLinks = allLinks.slice(-20).reverse();
+        const allLinks = await this.getLinks();
+        const recentLinks = allLinks.slice(0, 20);
 
         if (recentLinks.length === 0) {
             ticker.innerHTML = '<span class="ticker-item">No recent links</span>';
             return;
         }
 
-        // Duplicate items for seamless loop
         const items = [...recentLinks, ...recentLinks];
         
         ticker.innerHTML = items.map(link => `
@@ -2205,7 +2432,7 @@ ${rssItems}
 }
 
 // Initialize the app when DOM is loaded
-let app;
+let portalRoomApp;
 document.addEventListener('DOMContentLoaded', () => {
-    app = new PortalRoom();
+    portalRoomApp = new PortalRoom();
 });
