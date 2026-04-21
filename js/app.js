@@ -432,7 +432,7 @@ class PortalRoom {
             const confirmPassword = document.getElementById('reg-confirm-password')?.value;
 
             // Validation
-            if ((supabaseClient && !email) || !username || !password) {
+            if (!email || !username || !password) {
                 this.showNotification('Please fill in all fields', 'error');
                 return;
             }
