@@ -9,9 +9,9 @@
 <body>
     <header>
         <pre>
- ____             _        _   ____                       
-|  _ \ ___  _ __ | |_ __ _| | |  _ \ ___   ___  _ __ ___  
-| |_) / _ \| '_ \| __/ _` | | | |_) / _ \ / _ \| '_ ` _ \ 
+ ____             _        _   ____
+|  _ \ ___  _ __ | |_ __ _| | |  _ \ ___   ___  _ __ ___
+| |_) / _ \| '_ \| __/ _` | | | |_) / _ \ / _ \| '_ ` _ \
 |  __/ (_) | | | | || (_| | | |  _ < (_) | (_) | | | | | |
 |_|   \___/|_| |_|\__\__,_|_| |_| \_\___/ \___/|_| |_| |_|
         </pre>
@@ -34,24 +34,22 @@
             <div class="widget">
                 <div class="widget-header">Submission Tips</div>
                 <div class="widget-content">
-                    <p style="color: var(--muted); font-size: 0.85rem; line-height: 1.4;">
-                        • Use descriptive titles<br>
-                        • Add relevant tags<br>
-                        • Select a category<br>
-                        • Check for duplicates<br>
-                        • Use the fetch button<br>
-                        • Optional: add 88x31 button
-                    </p>
+                    <div class="widget-item">use descriptive titles</div>
+                    <div class="widget-item">add relevant tags</div>
+                    <div class="widget-item">select a category</div>
+                    <div class="widget-item">check for duplicates first</div>
+                    <div class="widget-item">use the fetch button</div>
+                    <div class="widget-item">88x31 button is optional</div>
                 </div>
             </div>
-            
+
             <div class="widget">
                 <div class="widget-header">Popular Tags</div>
                 <div class="widget-content">
                     <div class="tag-widget" id="widget-tags"></div>
                 </div>
             </div>
-            
+
             <div class="widget">
                 <div class="widget-header">Site Stats</div>
                 <div class="widget-content" id="widget-stats"></div>
@@ -60,28 +58,26 @@
 
         <!-- Main Content -->
         <main>
-            <div class="section-bar">
-                <span class="eyebrow">Submit Link</span>
-                <span class="hint">add a new link to the archive</span>
-            </div>
+            <div class="breadcrumb">/portal /submit</div>
             <div class="submit-form panel-block">
-                <h2>New Link Submission</h2>
-                <p class="dungeon-subtitle">Share a link with the community. Fill out the form below to add it to the archive.</p>
+                <h3>New Link Submission</h3>
+                <p class="dungeon-subtitle">Share a link with the community. Fill in the form below to add it to the archive.</p>
                 <form id="link-form">
-                    <label for="link-url" style="color: var(--text); font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">URL *</label>
-                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.8rem;">
-                        <input type="url" id="link-url" placeholder="https://example.com" required style="flex: 1; margin-bottom: 0;">
-                        <button type="button" id="fetch-meta" style="padding: 0.6rem 1rem; border: 1px solid var(--edge); background: var(--accent); color: var(--bg); font-family: 'Courier New', monospace; font-weight: bold; cursor: pointer; white-space: nowrap;">fetch metadata</button>
+
+                    <label for="link-url">URL *</label>
+                    <div class="url-row">
+                        <input type="url" id="link-url" placeholder="https://example.com" required>
+                        <button type="button" id="fetch-meta" class="btn-fetch">fetch metadata</button>
                     </div>
-                    
-                    <label for="link-title" style="color: var(--text); font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">Title *</label>
+
+                    <label for="link-title">Title *</label>
                     <input type="text" id="link-title" placeholder="site title" required>
-                    
-                    <label for="link-description" style="color: var(--text); font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">Description</label>
+
+                    <label for="link-description">Description</label>
                     <textarea id="link-description" placeholder="brief description (optional)"></textarea>
-                    
-                    <label for="link-category" style="color: var(--text); font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">Category *</label>
-                    <select id="link-category" required style="width: 100%; padding: 0.6rem; margin-bottom: 0.8rem; border: 1px solid var(--edge); background: var(--bg); color: var(--text); font-size: 0.9rem; font-family: 'Courier New', monospace;">
+
+                    <label for="link-category">Category *</label>
+                    <select id="link-category" required>
                         <option value="">-- select category --</option>
                         <option value="social">social</option>
                         <option value="forum">forum</option>
@@ -95,24 +91,30 @@
                         <option value="gaming">gaming</option>
                         <option value="other">other</option>
                     </select>
-                    
-                    <label for="link-tags" style="color: var(--text); font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">Tags</label>
+
+                    <label for="link-tags">Tags</label>
                     <input type="text" id="link-tags" placeholder="comma, separated, tags">
-                    
-                    <label for="link-annotation" style="color: var(--text); font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">Annotation <span style="color: var(--muted); font-size: 0.8rem;">(optional — your notes on this link)</span></label>
+
+                    <label for="link-annotation">
+                        Annotation <span class="form-hint">(optional — your notes on this link)</span>
+                    </label>
                     <textarea id="link-annotation" placeholder="your notes, context, or commentary..."></textarea>
 
-                    <label for="link-references" style="color: var(--text); font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">References <span style="color: var(--muted); font-size: 0.8rem;">(optional — comma-separated URLs already in the archive)</span></label>
+                    <label for="link-references">
+                        References <span class="form-hint">(optional — comma-separated URLs already in the archive)</span>
+                    </label>
                     <input type="text" id="link-references" placeholder="https://example.com, https://other.com">
 
-                    <label for="link-button" style="color: var(--text); font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">88x31 Button URL <span style="color: var(--muted); font-size: 0.8rem;">(optional)</span></label>
+                    <label for="link-button">
+                        88x31 Button URL <span class="form-hint">(optional)</span>
+                    </label>
                     <input type="url" id="link-button" placeholder="https://example.com/button.gif">
-                    
-                    <div id="thumbnail-preview" style="margin: 0.8rem 0; display: none;">
-                        <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 0.3rem;">Thumbnail Preview:</p>
-                        <img id="thumbnail-img" style="max-width: 200px; border: 1px solid var(--edge); display: block;">
+
+                    <div class="thumbnail-preview" id="thumbnail-preview">
+                        <p>Thumbnail Preview:</p>
+                        <img id="thumbnail-img" alt="thumbnail">
                     </div>
-                    
+
                     <button type="submit">submit link</button>
                 </form>
             </div>
@@ -124,12 +126,12 @@
                 <div class="widget-header">Your Recent Links</div>
                 <div class="widget-content" id="widget-user-links"></div>
             </div>
-            
+
             <div class="widget">
                 <div class="widget-header">Top Contributors</div>
                 <div class="widget-content" id="widget-users"></div>
             </div>
-            
+
             <div class="widget">
                 <div class="widget-header">Quick Links</div>
                 <div class="widget-content">

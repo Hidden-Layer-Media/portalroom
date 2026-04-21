@@ -123,44 +123,32 @@ nav {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 2px;
-    background: var(--bg-3);
-    border-top: 1px solid var(--bevel-hi);
-    border-left: 1px solid var(--bevel-hi);
+    background: var(--bg-2);
+    border-top: 2px solid var(--accent);
     border-bottom: 1px solid var(--bevel-lo);
-    border-right: 1px solid var(--bevel-lo);
-    padding: 2px;
-    margin-top: 0.25rem;
+    margin-top: 0.2rem;
 }
 
 nav a {
-    color: var(--bright);
-    padding: 0.22rem 0.7rem;
+    color: var(--muted);
+    padding: 0.28rem 0.85rem;
     font-size: 0.78rem;
     text-transform: lowercase;
     letter-spacing: 0.2px;
-    background: var(--bg-2);
-    border-top: 1px solid var(--bevel-hi);
-    border-left: 1px solid var(--bevel-hi);
-    border-bottom: 1px solid var(--bevel-lo);
     border-right: 1px solid var(--bevel-lo);
 }
+
+nav a:last-child { border-right: none; }
 
 nav a:hover {
     background: var(--bg-3);
     color: var(--accent);
-    border-top-color: var(--accent);
-    border-left-color: var(--accent);
 }
 
 nav a.active {
     background: var(--accent);
     color: #000;
     font-weight: bold;
-    border-top: 1px solid var(--accent-2);
-    border-left: 1px solid var(--accent-2);
-    border-bottom: 1px solid var(--accent-hi);
-    border-right: 1px solid var(--accent-hi);
 }
 
 /* =========================================
@@ -530,6 +518,17 @@ label {
     color: var(--muted);
 }
 
+.submit-form select,
+.list-form select,
+.search-filter select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='6'%3E%3Cpolygon points='0,0 8,0 4,6' fill='%23484848'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    padding-right: 1.6rem;
+    cursor: pointer;
+}
+
 .auth-form input:focus,
 .submit-form input:focus,
 .submit-form textarea:focus,
@@ -587,6 +586,81 @@ label {
 }
 
 #link-url { height: 2rem; }
+
+/* =========================================
+   URL ROW (submit form)
+   ========================================= */
+.url-row {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+    align-items: stretch;
+}
+
+.url-row input {
+    flex: 1;
+    margin-bottom: 0 !important;
+    min-width: 0;
+}
+
+.btn-fetch {
+    padding: 0.32rem 0.75rem;
+    border-top: 1px solid var(--bevel-hi);
+    border-left: 1px solid var(--bevel-hi);
+    border-bottom: 1px solid var(--bevel-lo);
+    border-right: 1px solid var(--bevel-lo);
+    background: var(--bg-3);
+    color: var(--bright);
+    cursor: pointer;
+    font-family: 'MS Gothic', 'MS PGothic', monospace;
+    font-size: 0.73rem;
+    font-weight: bold;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.btn-fetch:hover {
+    background: var(--bg-2);
+    color: var(--accent);
+    border-top-color: var(--accent);
+    border-left-color: var(--accent);
+}
+
+.btn-fetch:active {
+    border-top: 1px solid var(--bevel-lo);
+    border-left: 1px solid var(--bevel-lo);
+    border-bottom: 1px solid var(--bevel-hi);
+    border-right: 1px solid var(--bevel-hi);
+}
+
+.form-hint {
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: normal;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.thumbnail-preview {
+    margin: 0.45rem 0;
+    display: none;
+}
+
+.thumbnail-preview p {
+    color: var(--muted);
+    font-size: 0.76rem;
+    margin-bottom: 0.22rem;
+}
+
+.thumbnail-preview img {
+    max-width: 200px;
+    border-top: 1px solid var(--bevel-lo);
+    border-left: 1px solid var(--bevel-lo);
+    border-bottom: 1px solid var(--bevel-hi);
+    border-right: 1px solid var(--bevel-hi);
+    display: block;
+}
 
 /* =========================================
    SEARCH & FILTER
