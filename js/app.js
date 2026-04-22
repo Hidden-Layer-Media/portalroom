@@ -30,13 +30,13 @@ class PortalRoom {
 
     async init() {
         await this.loadSession();
+        this.updateNav();
         this.redirectAuthenticatedFromAuthPages();
         this.checkAuth();
         this.setupEventListeners();
         this.setupDungeonAmbiance();
         this.renderPage();
         this.setupKeyboardShortcuts();
-        this.loadTheme();
         this.addThemeToggle();
         this.addStatusLog();
         this.populateWidgets();
@@ -53,6 +53,7 @@ class PortalRoom {
             auth.onAuthStateChanged((user) => {
                 this.session = user;
                 this.currentUser = user?.email || null;
+                this.updateNav();
                 this.renderPage();
                 resolve(user);
             });
@@ -264,6 +265,15 @@ class PortalRoom {
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', (e) => this.handleLogout(e));
+        }
+
+        // Google sign-in
+        const googleBtn = document.getElementById('google-signin-btn');
+        if (googleBtn) {
+            googleBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.handleGoogleSignIn();
+            });
         }
 
         // Search
@@ -554,9 +564,10 @@ class PortalRoom {
             ));
 
             const annotation = this.sanitizeHTML(document.getElementById('link-annotation')?.value.trim() || '');
-            
-            if (db && this.session) {
-                this.showNotification('Submitting...', 'info');
+
+            const firebaseUser = (auth && auth.currentUser) ? auth.currentUser : this.session;
+            if (db && firebaseUser) {
+                this.showNotification('submitting...', 'info');
                 try {
                     await db.collection('posts').add({
                         url: this.sanitizeHTML(url),
@@ -566,7 +577,7 @@ class PortalRoom {
                         tags: normalizedTags.map(tag => this.sanitizeHTML(tag)).slice(0, 8),
                         thumbnail: thumbnail,
                         button: button ? this.sanitizeHTML(button) : '',
-                        user_id: this.session.uid,
+                        user_id: firebaseUser.uid,
                         author: this.currentUser,
                         annotation: annotation,
                         upvotes: 0,
@@ -575,19 +586,27 @@ class PortalRoom {
                         created_at: firebase.firestore.FieldValue.serverTimestamp()
                     });
 
-                    this.showNotification('Link submitted successfully!', 'success');
+                    this.showNotification('link submitted!', 'success');
                     setTimeout(() => window.location.href = '/dashboard', 500);
                     return;
                 } catch (error) {
-                    this.showNotification(error.message, 'error');
+                    const msg = error.code === 'permission-denied'
+                        ? 'permission denied — check firestore rules in firebase console'
+                        : (error.message || 'firestore write failed');
+                    this.showNotification(msg, 'error');
                     return;
                 }
             }
 
-            // Fallback
+            if (db && !firebaseUser) {
+                this.showNotification('not authenticated — please log in again', 'error');
+                return;
+            }
+
+            // Fallback (localStorage mode only)
             const allLinks = JSON.parse(localStorage.getItem('allLinks') || '[]');
             if (allLinks.some(link => link.url === url)) {
-                this.showNotification('This URL has already been submitted', 'error');
+                this.showNotification('this URL has already been submitted', 'error');
                 return;
             }
 
@@ -619,8 +638,10 @@ class PortalRoom {
             };
 
             const users = JSON.parse(localStorage.getItem('users') || '{}');
-            users[this.currentUser].links.push(link);
-            localStorage.setItem('users', JSON.stringify(users));
+            if (users[this.currentUser]) {
+                users[this.currentUser].links.push(link);
+                localStorage.setItem('users', JSON.stringify(users));
+            }
 
             allLinks.push(link);
             references.forEach(refId => {
@@ -1343,16 +1364,22 @@ class PortalRoom {
 
         container.innerHTML = '';
 
-        const statsContainer = document.getElementById('stats-grid');
-        if (statsContainer) {
-            this.renderStats(statsContainer, allLinks);
+        // populate toolbar stats
+        const setTb = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        const uniqueTags = new Set(allLinks.flatMap(l => l.tags || [])).size;
+        setTb('stats-grid', allLinks.length);
+        setTb('tb-tags', uniqueTags);
+        if (db) {
+            db.collection('profiles').get().then(snap => setTb('tb-users', snap.size)).catch(() => {});
+        } else {
+            setTb('tb-users', Object.keys(JSON.parse(localStorage.getItem('users') || '{}')).length);
         }
 
         if (recentLinks.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
-                    <p>No links have been submitted yet.</p>
-                    <p><a href="register.html">Register</a> to submit the first link to the archive.</p>
+                    <p>no links yet.</p>
+                    <p><a href="/register">register</a> to submit the first link.</p>
                 </div>
             `;
             return;
@@ -1952,6 +1979,44 @@ class PortalRoom {
         }
     }
 
+    updateNav() {
+        if (this.currentUser) {
+            document.body.classList.add('authed');
+        } else {
+            document.body.classList.remove('authed');
+        }
+    }
+
+    async handleGoogleSignIn() {
+        if (!auth) {
+            this.showNotification('auth not available', 'error');
+            return;
+        }
+        try {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            const result = await auth.signInWithPopup(provider);
+            const user = result.user;
+
+            if (db) {
+                try {
+                    await db.collection('profiles').doc(user.uid).set({
+                        username: user.displayName || user.email.split('@')[0],
+                        joined_at: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                } catch (profileError) {
+                    console.error('Profile write failed:', profileError);
+                }
+            }
+
+            this.showNotification('signed in!', 'success');
+            setTimeout(() => window.location.href = '/dashboard', 500);
+        } catch (error) {
+            if (error.code !== 'auth/popup-closed-by-user') {
+                this.showNotification(error.message, 'error');
+            }
+        }
+    }
+
     addThemeToggle() {
         const nav = document.querySelector('nav');
         if (!nav) return;
@@ -2020,6 +2085,7 @@ ${rssItems}
         await this.populateRecentWidget();
         await this.populateTopWidget();
         await this.populateUserLinksWidget();
+        await this.populateFooterStats();
     }
 
     async populateStatsWidget() {
@@ -2167,6 +2233,27 @@ ${rssItems}
                 <a href="${link.url}" target="_blank" title="${this.sanitizeHTML(link.title)}">${this.sanitizeHTML(link.title)}</a>
             </div>
         `).join('');
+    }
+
+    async populateFooterStats() {
+        const allLinks = await this.getLinks();
+        const totalLinks = allLinks.length;
+        const totalComments = allLinks.reduce((sum, l) => sum + (l.comments?.length || 0), 0);
+        const uniqueTags = new Set(allLinks.flatMap(l => l.tags || [])).size;
+        let totalUsers = 0;
+        if (db) {
+            try {
+                const snap = await db.collection('profiles').get();
+                totalUsers = snap.size;
+            } catch {}
+        } else {
+            totalUsers = Object.keys(JSON.parse(localStorage.getItem('users') || '{}')).length;
+        }
+        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setEl('footer-stat-links', totalLinks);
+        setEl('footer-stat-users', totalUsers);
+        setEl('footer-stat-tags', uniqueTags);
+        setEl('footer-stat-comments', totalComments);
     }
 
     async startTicker() {

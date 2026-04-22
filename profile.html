@@ -20,9 +20,13 @@
         <nav>
             <a href="/">home</a>
             <a href="/dashboard">dashboard</a>
-            <a href="/submit">submit</a>
-            <a href="/profile" class="active">profile</a>
-            <a href="#" id="logout-btn">logout</a>
+            <a href="/top-links">top links</a>
+            <a href="/tags">tags</a>
+            <a href="/submit" class="nav-auth">submit</a>
+            <a href="/profile" class="active nav-auth">profile</a>
+            <a href="/login" class="nav-noauth">login</a>
+            <a href="/register" class="nav-noauth">register</a>
+            <a href="#" id="logout-btn" class="nav-auth">logout</a>
         </nav>
         <div class="ticker-container">
             <div class="ticker-label">latest:</div>
@@ -86,28 +90,36 @@
             <div class="profile-customization panel-block">
                 <h3>Customize Profile</h3>
                 
-                <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; color: var(--text); margin-bottom: 0.4rem; font-weight: bold;">About / Bio</label>
-                    <textarea id="profile-bio" placeholder="Tell others about yourself..." style="width: 100%; min-height: 80px; padding: 0.6rem; background: var(--bg); border: 2px solid var(--edge); color: var(--text); font-family: 'Courier New', monospace; resize: vertical;"></textarea>
-                    <button onclick="app.saveBio()" style="margin-top: 0.5rem; padding: 0.5rem 1rem; border: 2px solid var(--accent); background: var(--accent); color: var(--bg); cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold;">Save Bio</button>
-                </div>
-
-                <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; color: var(--text); margin-bottom: 0.4rem; font-weight: bold;">Background Image</label>
-                    <input type="url" id="profile-bg-url" placeholder="background image url (https://...)" style="width: 100%; padding: 0.6rem; margin-bottom: 0.5rem; background: var(--bg); border: 2px solid var(--edge); color: var(--text); font-family: 'Courier New', monospace;">
-                    <div class="profile-bg-preview" id="bg-preview"></div>
-                    <div class="profile-bg-options">
-                        <button onclick="app.setBackground('tiled')">Set Tiled</button>
-                        <button onclick="app.setBackground('full')">Set Full</button>
-                        <button onclick="app.clearBackground()">Clear</button>
+                <div class="profile-section">
+                    <label>about / bio</label>
+                    <div class="profile-form">
+                        <textarea id="profile-bio" placeholder="Tell others about yourself..."></textarea>
+                    </div>
+                    <div class="profile-form-actions">
+                        <button onclick="app.saveBio()" class="btn-primary">save bio</button>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; color: var(--text); margin-bottom: 0.4rem; font-weight: bold;">Custom CSS <span style="color: var(--muted); font-size: 0.85rem; font-weight: normal;">(advanced)</span></label>
+                <div class="profile-section">
+                    <label>background image</label>
+                    <div class="profile-form">
+                        <input type="url" id="profile-bg-url" placeholder="background image url (https://...)">
+                    </div>
+                    <div class="profile-bg-preview" id="bg-preview"></div>
+                    <div class="profile-form-actions">
+                        <button onclick="app.setBackground('tiled')" class="btn-ghost">set tiled</button>
+                        <button onclick="app.setBackground('full')" class="btn-ghost">set full</button>
+                        <button onclick="app.clearBackground()" class="btn-ghost">clear</button>
+                    </div>
+                </div>
+
+                <div class="profile-section">
+                    <label>custom css <span style="color: var(--muted); font-size: 0.85rem; font-weight: normal;">(advanced)</span></label>
                     <textarea id="custom-css-editor" class="css-editor" placeholder="/* Add your custom CSS here */&#10;.profile-hero {&#10;  /* your styles */&#10;}"></textarea>
-                    <button onclick="app.saveCustomCSS()" style="margin-top: 0.5rem; padding: 0.5rem 1rem; border: 2px solid var(--accent); background: var(--accent); color: var(--bg); cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold;">Apply CSS</button>
-                    <button onclick="app.clearCustomCSS()" style="margin-top: 0.5rem; margin-left: 0.5rem; padding: 0.5rem 1rem; border: 2px solid var(--error); background: var(--error); color: var(--bg); cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold;">Clear CSS</button>
+                    <div class="profile-form-actions">
+                        <button onclick="app.saveCustomCSS()" class="btn-primary">apply css</button>
+                        <button onclick="app.clearCustomCSS()" class="btn-ghost">clear css</button>
+                    </div>
                 </div>
             </div>
 
@@ -116,7 +128,7 @@
                 <!-- About Section -->
                 <div class="profile-about" id="profile-about-display">
                     <h3>About</h3>
-                    <p id="bio-content" style="color: var(--text); line-height: 1.6;">No bio set yet.</p>
+                    <p id="bio-content">No bio set yet.</p>
                 </div>
 
                 <div class="profile-columns">
@@ -131,7 +143,7 @@
                     <div id="user-lists" class="profile-column">
                         <div class="column-header">
                             <h3>Your Lists</h3>
-                            <a href="/list" class="btn-edit compact" style="text-decoration: none;">+ create</a>
+                            <a href="/list" class="btn-ghost compact">+ create</a>
                         </div>
                         <div id="lists-container"></div>
                     </div>
@@ -179,6 +191,20 @@
             </div>
         </aside>
     </div>
+
+    <footer class="site-footer">
+        <span class="footer-brand">portalroom</span>
+        <span class="footer-statbar">
+            <span class="footer-seg"><span id="footer-stat-links">—</span> links</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-users">—</span> users</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-tags">—</span> tags</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-comments">—</span> comments</span>
+        </span>
+        <span class="footer-nav"><a href="/tags">tags</a> | <a href="/top-links">top</a></span>
+    </footer>
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>

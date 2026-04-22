@@ -19,8 +19,13 @@
         <nav>
             <a href="/">home</a>
             <a href="/dashboard">dashboard</a>
-            <a href="/login">login</a>
-            <a href="/register" class="active">register</a>
+            <a href="/top-links">top links</a>
+            <a href="/tags">tags</a>
+            <a href="/submit" class="nav-auth">submit</a>
+            <a href="/profile" class="nav-auth">profile</a>
+            <a href="/login" class="nav-noauth">login</a>
+            <a href="/register" class="active nav-noauth">register</a>
+            <a href="#" id="logout-btn" class="nav-auth">logout</a>
         </nav>
         <div class="ticker-container">
             <div class="ticker-label">latest:</div>
@@ -59,11 +64,17 @@
                 <h2>New User Registration</h2>
                 <p class="dungeon-subtitle">Create an account to submit and manage links in the archive.</p>
                 <form id="register-form">
+                    <label for="reg-email">email</label>
                     <input type="email" id="reg-email" placeholder="email address" required>
-                    <input type="text" id="reg-username" placeholder="username (min 3 chars)" required minlength="3">
-                    <input type="password" id="reg-password" placeholder="password (min 6 chars)" required minlength="6">
-                    <input type="password" id="reg-confirm-password" placeholder="confirm password" required minlength="6">
-                    <button type="submit">register</button>
+                    <label for="reg-username">username</label>
+                    <input type="text" id="reg-username" placeholder="min 3 characters" required minlength="3">
+                    <label for="reg-password">password</label>
+                    <input type="password" id="reg-password" placeholder="min 6 characters" required minlength="6">
+                    <label for="reg-confirm-password">confirm password</label>
+                    <input type="password" id="reg-confirm-password" placeholder="re-enter password" required minlength="6">
+                    <button type="submit" class="btn-primary">register</button>
+                    <div class="auth-divider"><span>or</span></div>
+                    <button type="button" id="google-signin-btn" class="btn-google">[ G ] continue with google</button>
                     <p class="dungeon-link">Already have an account? <a href="/login">Login here</a></p>
                 </form>
             </div>
@@ -92,6 +103,20 @@
             </div>
         </aside>
     </div>
+
+    <footer class="site-footer">
+        <span class="footer-brand">portalroom</span>
+        <span class="footer-statbar">
+            <span class="footer-seg"><span id="footer-stat-links">—</span> links</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-users">—</span> users</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-tags">—</span> tags</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-comments">—</span> comments</span>
+        </span>
+        <span class="footer-nav"><a href="/tags">tags</a> | <a href="/top-links">top</a></span>
+    </footer>
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>

@@ -19,10 +19,14 @@
         <nav>
             <a href="/">home</a>
             <a href="/dashboard">dashboard</a>
-            <a href="/submit">submit</a>
-            <a href="/profile">profile</a>
-            <a href="/list" class="active">create list</a>
-            <a href="#" id="logout-btn">logout</a>
+            <a href="/top-links">top links</a>
+            <a href="/tags">tags</a>
+            <a href="/submit" class="nav-auth">submit</a>
+            <a href="/profile" class="nav-auth">profile</a>
+            <a href="/list" class="active nav-auth">create list</a>
+            <a href="/login" class="nav-noauth">login</a>
+            <a href="/register" class="nav-noauth">register</a>
+            <a href="#" id="logout-btn" class="nav-auth">logout</a>
         </nav>
         <div class="ticker-container">
             <div class="ticker-label">latest:</div>
@@ -70,8 +74,8 @@
                 <form id="list-form">
                     <input type="text" id="list-name" placeholder="list name" required>
                     <textarea id="list-description" placeholder="description (optional)"></textarea>
-                    <label style="color: var(--text); font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem; cursor: pointer;">
-                        <input type="checkbox" id="list-ordered" style="accent-color: var(--accent); width: auto; margin: 0;">
+                    <label class="checkbox-row" for="list-ordered">
+                        <input type="checkbox" id="list-ordered">
                         Trail (ordered list — steps are numbered)
                     </label>
                     <button type="submit">create list</button>
@@ -102,6 +106,20 @@
             </div>
         </aside>
     </div>
+
+    <footer class="site-footer">
+        <span class="footer-brand">portalroom</span>
+        <span class="footer-statbar">
+            <span class="footer-seg"><span id="footer-stat-links">—</span> links</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-users">—</span> users</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-tags">—</span> tags</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-comments">—</span> comments</span>
+        </span>
+        <span class="footer-nav"><a href="/tags">tags</a> | <a href="/top-links">top</a></span>
+    </footer>
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>

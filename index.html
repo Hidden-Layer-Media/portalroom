@@ -19,12 +19,13 @@
         <nav>
             <a href="/" class="active">home</a>
             <a href="/dashboard">dashboard</a>
-            <a href="/submit">submit</a>
             <a href="/top-links">top links</a>
             <a href="/tags">tags</a>
-            <a href="/profile">profile</a>
-            <a href="/login">login</a>
-            <a href="/register">register</a>
+            <a href="/submit" class="nav-auth">submit</a>
+            <a href="/profile" class="nav-auth">profile</a>
+            <a href="/login" class="nav-noauth">login</a>
+            <a href="/register" class="nav-noauth">register</a>
+            <a href="#" id="logout-btn" class="nav-auth">logout</a>
         </nav>
         <div class="ticker-container">
             <div class="ticker-label">latest:</div>
@@ -55,19 +56,21 @@
 
         <!-- Main Content -->
         <main>
-            <div class="breadcrumb">/portal /home</div>
-            <div id="links-container" class="dungeon-welcome panel-block">
-                <h1>Portal Room Link Archive</h1>
-                <div class="dungeon-description">
-                    <p>A collaborative link archive. Browse recent submissions or register to contribute your own links to the collection.</p>
+            <div class="main-toolbar">
+                <span class="main-toolbar-path">/portal/home</span>
+                <div class="main-toolbar-stats">
+                    <span class="tb-stat"><span id="stats-grid" class="tb-stat-val">—</span> links</span>
+                    <span class="tb-sep">|</span>
+                    <span class="tb-stat"><span id="tb-users" class="tb-stat-val">—</span> users</span>
+                    <span class="tb-sep">|</span>
+                    <span class="tb-stat"><span id="tb-tags" class="tb-stat-val">—</span> tags</span>
                 </div>
-                <div class="cta-buttons">
-                    <a href="/login" class="btn-ghost">login</a>
-                    <a href="/register" class="btn-primary">register</a>
+                <div class="main-toolbar-actions nav-noauth">
+                    <a href="/login" class="tb-btn">login</a>
+                    <a href="/register" class="tb-btn tb-btn-accent">register</a>
                 </div>
-                <div id="stats-grid" class="stats-grid"></div>
-                <div id="links-list"></div>
             </div>
+            <div id="links-list"></div>
         </main>
 
         <!-- Right Sidebar -->
@@ -93,6 +96,20 @@
             </div>
         </aside>
     </div>
+
+    <footer class="site-footer">
+        <span class="footer-brand">portalroom</span>
+        <span class="footer-statbar">
+            <span class="footer-seg"><span id="footer-stat-links">—</span> links</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-users">—</span> users</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-tags">—</span> tags</span>
+            <span class="footer-divider"></span>
+            <span class="footer-seg"><span id="footer-stat-comments">—</span> comments</span>
+        </span>
+        <span class="footer-nav"><a href="/tags">tags</a> | <a href="/top-links">top</a></span>
+    </footer>
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
